@@ -7,11 +7,17 @@ from app.config import get_settings
 from app.db.base import Base
 
 settings = get_settings()
+engine_kwargs = {
+    "future": True,
+    "echo": False,
+}
+
+if settings.database_url.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"timeout": 30}
+
 engine = create_async_engine(
     settings.database_url,
-    future=True,
-    echo=False,
-    connect_args={"timeout": 30},
+    **engine_kwargs,
 )
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 

@@ -9,9 +9,14 @@ router = Router()
 
 
 async def send_start_message(message: Message, container: AppContainer) -> None:
+    if message.from_user is None:
+        return
+    free_credits, paid_credits = await container.credit_service.get_balance(message.from_user.id)
+    total = free_credits + paid_credits
     await message.answer(
         "Hi! I turn regular photos into photorealistic vintage flash shots.\n\n"
-        f"You already have {container.settings.free_credits_on_start} free edits.\n"
+        f"You currently have {total} edits available "
+        f"({free_credits} free, {paid_credits} paid).\n"
         "Send me a photo and I will turn it into a vintage flash-style image.",
         reply_markup=main_menu_keyboard(),
     )
