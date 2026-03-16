@@ -53,7 +53,7 @@ async def main() -> None:
     cleanup_task = asyncio.create_task(temp_cleanup_loop(container.settings))
 
     try:
-        await dp.start_polling(bot)
+        await dp.start_polling(bot, polling_timeout=20)
     finally:
         cleanup_task.cancel()
         await container.close()

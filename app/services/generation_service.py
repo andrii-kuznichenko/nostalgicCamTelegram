@@ -196,11 +196,13 @@ class GenerationService:
         )
 
         try:
+            logger.info("Starting image edit for user %s", message.from_user.id)
             result_path = await self.ai_service.edit_image(
                 image_path=source_path,
                 prompt=VINTAGE_FLASH_PROMPT,
                 progress_callback=progress_callback,
             )
+            logger.info("Image edit finished for user %s, result_path=%s", message.from_user.id, result_path)
         except AIServiceError as exc:
             action_task.cancel()
             with contextlib.suppress(Exception):
@@ -212,24 +214,31 @@ class GenerationService:
             return "Could not process the photo. Please try again."
 
         try:
+            logger.info("Sending result photo to Telegram for user %s", message.from_user.id)
             with contextlib.suppress(Exception):
                 await progress_message.edit_text("Sending your result...")
-            await message.answer_photo(
-                photo=FSInputFile(result_path),
-                caption="Done. Here is your processed photo.",
+            await asyncio.wait_for(
+                message.answer_photo(
+                    photo=FSInputFile(result_path),
+                    caption="Done. Here is your processed photo.",
+                ),
+                timeout=45,
             )
+            logger.info("Result photo sent to Telegram for user %s", message.from_user.id)
         except Exception:
             action_task.cancel()
             with contextlib.suppress(Exception):
                 await progress_message.edit_text("The edit is ready, but sending the result failed.")
-            logger.exception("Failed to send result photo to user")
+            logger.exception("Failed to send result photo to user %s", message.from_user.id)
             async with session.begin():
                 await generation_repo.mark_failed(generation, "send_result_failed")
             await message_dedup_registry.forget(request_key)
             return "Failed to send the result. Please try again a bit later."
 
         try:
+            logger.info("Consuming one credit for user %s", message.from_user.id)
             await self.credit_service.consume_one_credit(message.from_user.id)
+            logger.info("Credit consumed for user %s", message.from_user.id)
         except ValueError:
             async with session.begin():
                 await generation_repo.mark_failed(generation, "credits_race_condition")
@@ -237,7 +246,9 @@ class GenerationService:
             return "Your balance seems to have changed during processing. Please check /balance."
 
         async with session.begin():
+            logger.info("Marking generation success for user %s", message.from_user.id)
             await generation_repo.mark_success(generation, str(result_path))
+            logger.info("Generation marked successful for user %s", message.from_user.id)
 
         action_task.cancel()
         with contextlib.suppress(Exception):
