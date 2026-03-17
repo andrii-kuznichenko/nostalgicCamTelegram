@@ -15,6 +15,7 @@ class MockAIImageEditingService(AIImageEditingService):
         self,
         image_path: Path,
         prompt: str,
+        negative_prompt: str | None = None,
         progress_callback: Callable[[str], Awaitable[None]] | None = None,
     ) -> Path:
         if progress_callback is not None:

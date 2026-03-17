@@ -20,6 +20,7 @@ class HttpAIImageEditingService(AIImageEditingService):
         self,
         image_path: Path,
         prompt: str,
+        negative_prompt: str | None = None,
         progress_callback: Callable[[str], Awaitable[None]] | None = None,
     ) -> Path:
         if progress_callback is not None:
@@ -33,6 +34,8 @@ class HttpAIImageEditingService(AIImageEditingService):
                     "prompt": prompt,
                     "model": self.settings.ai_model_name,
                 }
+                if negative_prompt:
+                    data["negative_prompt"] = negative_prompt
                 response = await self.client.post(
                     self.settings.ai_api_url,
                     headers={"Authorization": f"Bearer {self.settings.ai_api_key}"},

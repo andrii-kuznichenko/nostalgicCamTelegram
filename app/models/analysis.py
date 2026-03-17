@@ -9,6 +9,7 @@ class ImageAnalysisResult:
     face_count: int
     face_visible: bool
     face_occluded: bool
+    face_unclear: bool
     phone_covers_face: bool
     is_mirror_selfie: bool
     is_selfie: bool

@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     package_credits: int = Field(default=50, alias="PACKAGE_CREDITS")
     max_photo_size_bytes: int = Field(default=10 * 1024 * 1024, alias="MAX_PHOTO_SIZE_BYTES")
     max_concurrent_generations_per_user: int = Field(default=1, alias="MAX_CONCURRENT_GENERATIONS_PER_USER")
+    max_concurrent_generations_global: int = Field(default=2, alias="MAX_CONCURRENT_GENERATIONS_GLOBAL")
     flood_window_seconds: int = Field(default=2, alias="FLOOD_WINDOW_SECONDS")
     temp_file_ttl_hours: int = Field(default=24, alias="TEMP_FILE_TTL_HOURS")
     use_mock_ai_provider: bool = Field(default=True, alias="USE_MOCK_AI_PROVIDER")

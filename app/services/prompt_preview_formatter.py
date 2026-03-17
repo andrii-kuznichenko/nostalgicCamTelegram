@@ -21,6 +21,7 @@ def build_preview_messages(analysis: ImageAnalysisResult, package: PromptPackage
             f"- Face count: {analysis.face_count}",
             f"- Face visible: {_bool_en(analysis.face_visible)}",
             f"- Face partially occluded: {_bool_en(analysis.face_occluded)}",
+            f"- Face unclear: {_bool_en(analysis.face_unclear)}",
             f"- Phone covers face: {_bool_en(analysis.phone_covers_face)}",
             f"- Mirror selfie: {_bool_en(analysis.is_mirror_selfie)}",
             f"- Selfie: {_bool_en(analysis.is_selfie)}",

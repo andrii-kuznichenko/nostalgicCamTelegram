@@ -15,7 +15,7 @@ from app.models.user import User
 from app.repositories.generation_repository import GenerationRepository
 from app.services.ai.base import AIImageEditingService, AIServiceError
 from app.services.credit_service import CreditService
-from app.services.generation_locks import lock_registry
+from app.services.generation_locks import GlobalGenerationLimiter, lock_registry
 from app.services.image_analysis import ImageAnalyzer
 from app.services.message_dedup import message_dedup_registry
 from app.services.prompt_builder import PromptBuilder
@@ -34,12 +34,14 @@ class GenerationService:
         credit_service: CreditService,
         image_analyzer: ImageAnalyzer,
         prompt_builder: PromptBuilder,
+        generation_limiter: GlobalGenerationLimiter,
     ) -> None:
         self.settings = settings
         self.ai_service = ai_service
         self.credit_service = credit_service
         self.image_analyzer = image_analyzer
         self.prompt_builder = prompt_builder
+        self.generation_limiter = generation_limiter
 
     async def _run_chat_action_loop(self, bot: Bot, chat_id: int, action: ChatAction) -> None:
         while True:
@@ -196,22 +198,51 @@ class GenerationService:
         )
 
         try:
-            logger.info("Starting image edit for user %s", message.from_user.id)
-            result_path = await self.ai_service.edit_image(
-                image_path=source_path,
-                prompt=VINTAGE_FLASH_PROMPT,
-                progress_callback=progress_callback,
-            )
+            final_negative_prompt: str | None = None
+            try:
+                analysis = await self.image_analyzer.analyze(source_path)
+                prompt_package = self.prompt_builder.build_flux_prompt(analysis)
+                final_prompt = prompt_package.prompt
+                final_negative_prompt = prompt_package.negative_prompt
+                async with session.begin():
+                    generation.prompt_used = final_prompt
+                    generation.error_message = final_negative_prompt
+                    await session.flush()
+            except Exception:
+                logger.exception("Prompt analysis failed during generation; falling back to default prompt")
+                final_prompt = VINTAGE_FLASH_PROMPT
+
+            async with self.generation_limiter.acquire() as waiting_before:
+                if waiting_before > 0:
+                    queue_message = (
+                        f"Your photo is in the queue. "
+                        f"{waiting_before} request(s) ahead of you. "
+                        f"We process up to {self.generation_limiter.limit} at a time."
+                    )
+                    with contextlib.suppress(Exception):
+                        await progress_message.edit_text(queue_message)
+                    last_progress_text = queue_message
+
+                logger.info("Starting image edit for user %s", message.from_user.id)
+                result_path = await self.ai_service.edit_image(
+                    image_path=source_path,
+                    prompt=final_prompt,
+                    negative_prompt=final_negative_prompt,
+                    progress_callback=progress_callback,
+                )
             logger.info("Image edit finished for user %s, result_path=%s", message.from_user.id, result_path)
         except AIServiceError as exc:
             action_task.cancel()
+            user_message = str(exc)
+            if "provider moderation check" not in user_message:
+                user_message = "Could not process the photo. Please try again."
             with contextlib.suppress(Exception):
-                await progress_message.edit_text("Editing failed. Please try again.")
+                await progress_message.edit_text(user_message)
             logger.exception("Image edit provider failed: %s", exc)
             async with session.begin():
                 await generation_repo.mark_failed(generation, str(exc))
             await message_dedup_registry.forget(request_key)
-            return "Could not process the photo. Please try again."
+            return user_message
 
         try:
             logger.info("Sending result photo to Telegram for user %s", message.from_user.id)

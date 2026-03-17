@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from app.models.analysis import ImageAnalysisResult
 from app.models.prompting import PromptPackage
 
-BASE_PROMPT = (
+HUMAN_BASE_PROMPT = (
     "Edit the uploaded photo by applying a photorealistic vintage flash camera aesthetic while preserving the exact same "
     "person, exact same facial identity, exact same pose, exact same outfit, exact same hairstyle, exact same framing, and "
     "exact same scene composition. Keep the image realistic and natural. Preserve true facial structure, natural skin texture, "
@@ -17,11 +17,31 @@ BASE_PROMPT = (
     "and not like an obviously AI-generated image."
 )
 
-NEGATIVE_PROMPT = (
+NO_FACE_BASE_PROMPT = (
+    "Edit the uploaded photo by applying a photorealistic vintage flash camera aesthetic while preserving the exact same "
+    "main subject, exact same composition, exact same camera angle, exact same framing, and exact same background structure. "
+    "Keep the image realistic and natural. Preserve the true shape, proportions, surface texture, and placement of the visible "
+    "subject and surrounding scene. Do not redesign the subject. Do not replace objects. Do not invent missing elements. "
+    "Do not turn the image into digital art, CGI, or an obviously AI-generated result. Only transform the photographic style "
+    "and lighting. Apply a realistic direct on-camera flash effect, slightly overexposed highlights, natural flash shadows, "
+    "a darker ambient background, subtle film grain, light digital sensor noise, gentle bloom, soft flash falloff, and an "
+    "authentic early-2000s compact digital camera / disposable camera aesthetic. The final result must look like the original "
+    "real photo with a believable vintage flash treatment applied."
+)
+
+HUMAN_NEGATIVE_PROMPT = (
     "different person, identity loss, face reconstruction, changed facial features, beautified face, plastic skin, smooth skin, "
     "fake skin, stylized portrait, cartoon, painting, illustration, CGI, 3d render, unrealistic eyes, distorted hands, extra fingers, "
     "altered pose, changed outfit, changed hairstyle, changed background, altered camera angle, excessive glow, extreme grain, "
-    "oversaturated colors, ai-generated face"
+    "oversaturated colors, ai-generated face, opened eyes, reconstructed eyes, invented pupils, altered eyelids, sharpened facial details, "
+    "invented eyelashes, invented eyebrows, reconstructed blurred face, artificial skin detail"
+)
+
+NO_FACE_NEGATIVE_PROMPT = (
+    "redesigned subject, replaced object, invented details, extra animals, duplicate subject, altered proportions, altered shape, "
+    "deformed anatomy, surreal textures, cartoon, painting, illustration, CGI, 3d render, fake fur, plastic texture, melted details, "
+    "warped edges, altered background structure, changed camera angle, excessive glow, extreme grain, oversaturated colors, "
+    "obviously ai-generated image"
 )
 
 MODE_PROMPTS = {
@@ -35,6 +55,7 @@ MODE_PROMPTS = {
 SAFETY_PROMPTS = {
     "face_visible": "Preserve the exact same visible facial identity and facial proportions. Keep facial features unchanged and natural.",
     "face_occluded": "Do not reconstruct hidden parts of the face. Do not invent or alter covered facial features. Preserve only the visible facial structure exactly as shown.",
+    "face_unclear": "If facial details are soft, distant, motion-blurred, closed-eyed, or unclear in the source, preserve that ambiguity exactly. Do not sharpen the face, do not open the eyes, do not invent pupils, eyelashes, eyelids, teeth, skin detail, or missing facial features.",
     "mirror_selfie": "Preserve the exact same phone, exact same hand position, exact same reflection geometry, exact same mirror perspective, exact same camera angle, and exact same framing. Do not alter the reflection structure.",
     "phone_covers_face": "Do not modify the phone shape, hand anatomy, finger placement, or the visible part of the face. Do not regenerate hidden facial areas.",
     "multi_face": "Preserve every visible person exactly. Do not merge faces, do not alter identity, and do not shift facial proportions between subjects.",
@@ -91,13 +112,23 @@ class PromptBuilder:
 
     def build_flux_prompt(self, analysis: ImageAnalysisResult, user_mode: str | None = None) -> PromptPackage:
         selected_mode = self.select_mode(analysis, user_mode=user_mode)
-        blocks: list[tuple[str, str]] = [("base_prompt", BASE_PROMPT)]
+        base_prompt = HUMAN_BASE_PROMPT
+        base_prompt_name = "human_base_prompt"
+        negative_prompt = HUMAN_NEGATIVE_PROMPT
+        if analysis.subject_type in {"object", "scene", "person_no_face"}:
+            base_prompt = NO_FACE_BASE_PROMPT
+            base_prompt_name = "no_face_base_prompt"
+            negative_prompt = NO_FACE_NEGATIVE_PROMPT
+
+        blocks: list[tuple[str, str]] = [(base_prompt_name, base_prompt)]
         blocks.append((f"{selected_mode}_mode", MODE_PROMPTS[selected_mode]))
 
         if analysis.face_visible:
             blocks.append(("face_visible", SAFETY_PROMPTS["face_visible"]))
         if analysis.face_occluded:
             blocks.append(("face_occluded", SAFETY_PROMPTS["face_occluded"]))
+        if analysis.face_unclear:
+            blocks.append(("face_unclear", SAFETY_PROMPTS["face_unclear"]))
         if analysis.phone_covers_face:
             blocks.append(("phone_covers_face", SAFETY_PROMPTS["phone_covers_face"]))
         if analysis.requires_mirror_safe_prompt:
@@ -119,7 +150,7 @@ class PromptBuilder:
 
         return PromptPackage(
             prompt=" ".join(text for _, text in blocks),
-            negative_prompt=NEGATIVE_PROMPT,
+            negative_prompt=negative_prompt,
             selected_mode=selected_mode,
             applied_blocks=[name for name, _ in blocks],
         )

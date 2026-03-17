@@ -94,6 +94,20 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
 
         person_boxes, person_trace = self._detect_people(path)
         person_count = len(person_boxes)
+
+        suspicious_face_detection = (
+            has_face
+            and largest_face_ratio < 0.012
+            and eye_hits == 0
+            and person_count == 0
+        )
+        if suspicious_face_detection:
+            face_boxes = []
+            face_count = 0
+            has_face = False
+            largest_face_ratio = 0.0
+            top_face_centered = False
+
         has_person = person_count > 0 or center_skin_ratio > 0.12 or face_zone_skin_ratio > 0.10
 
         is_portrait_frame = height >= width
@@ -130,6 +144,7 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
             and aspect_ratio <= 0.80
             and phone_like_region_score >= 0.50
             and (has_face or has_person)
+            and (has_face or person_count > 0 or center_skin_ratio > 0.18)
             and (face_occluded or eye_hits <= 1)
         )
         if is_mirror_selfie:
@@ -138,6 +153,17 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
         face_visible = has_face and not face_occluded
         if is_mirror_selfie and has_face:
             face_visible = True
+
+        face_unclear = (
+            has_face
+            and (
+                largest_face_ratio < 0.028
+                or eye_hits == 0
+                or (not close_up_portrait and largest_face_ratio < 0.05)
+            )
+        )
+        if face_occluded:
+            face_unclear = True
 
         is_night = overall_brightness < 80 and top_half_brightness < 95
         strong_existing_flash = (
@@ -187,6 +213,7 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
             photo_type=photo_type,
             is_mirror_selfie=is_mirror_selfie,
             face_occluded=face_occluded,
+            face_unclear=face_unclear,
             phone_covers_face=phone_covers_face,
             complex_scene=complex_scene,
             is_night=is_night,
@@ -198,6 +225,7 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
 
         requires_safe_prompt = (
             face_occluded
+            or face_unclear
             or phone_covers_face
             or face_count > 1
             or complex_scene
@@ -219,6 +247,7 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
             f"person_count={person_count}",
             f"eye_hits={eye_hits}",
             f"largest_face_ratio={largest_face_ratio:.3f}",
+            f"suspicious_face_detection={suspicious_face_detection}",
             f"phone_like_region_score={phone_like_region_score:.2f}",
             f"overall_brightness={overall_brightness:.1f}",
             f"top_half_brightness={top_half_brightness:.1f}",
@@ -246,6 +275,7 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
             face_count=face_count,
             face_visible=face_visible,
             face_occluded=face_occluded,
+            face_unclear=face_unclear,
             phone_covers_face=phone_covers_face,
             is_mirror_selfie=is_mirror_selfie,
             is_selfie=is_selfie,
@@ -494,6 +524,7 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
         photo_type: str,
         is_mirror_selfie: bool,
         face_occluded: bool,
+        face_unclear: bool,
         phone_covers_face: bool,
         complex_scene: bool,
         is_night: bool,
@@ -515,8 +546,8 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
                 return "classic", trace
             trace.append("selected disposable because subject_type=person_no_face without a safe visible face")
             return "disposable", trace
-        if is_mirror_selfie or face_occluded or phone_covers_face or complex_scene:
-            trace.append("selected classic because mirror/occlusion/complex-scene safety rule fired")
+        if is_mirror_selfie or face_occluded or face_unclear or phone_covers_face or complex_scene:
+            trace.append("selected classic because mirror/occlusion/unclear-face/complex-scene safety rule fired")
             return "classic", trace
         if face_count > 1:
             trace.append("selected classic because multiple faces were detected")

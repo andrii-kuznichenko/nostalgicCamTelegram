@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import json
 import logging
 import uuid
 from collections.abc import Awaitable, Callable
@@ -22,6 +23,7 @@ class FalFluxImageEditingService(AIImageEditingService):
         self,
         image_path: Path,
         prompt: str,
+        negative_prompt: str | None = None,
         progress_callback: Callable[[str], Awaitable[None]] | None = None,
     ) -> Path:
         data_uri = self._build_data_uri(image_path)
@@ -37,6 +39,8 @@ class FalFluxImageEditingService(AIImageEditingService):
             "output_format": "jpeg",
             "enable_safety_checker": True,
         }
+        if negative_prompt:
+            payload["negative_prompt"] = negative_prompt
 
         if progress_callback is not None:
             await progress_callback("Uploading your photo...")
@@ -49,9 +53,7 @@ class FalFluxImageEditingService(AIImageEditingService):
             raise AIServiceError("Could not reach fal queue API.") from exc
 
         if submit_response.status_code >= 400:
-            raise AIServiceError(
-                f"fal queue submit failed with status {submit_response.status_code}: {submit_response.text}"
-            )
+            raise self._build_api_error("fal queue submit failed", submit_response.status_code, submit_response.text)
 
         submit_data = submit_response.json()
         request_id = submit_data.get("request_id")
@@ -119,7 +121,11 @@ class FalFluxImageEditingService(AIImageEditingService):
                 raise AIServiceError("Could not poll fal status endpoint.") from exc
 
             if response.status_code >= 400:
-                raise AIServiceError(f"fal status endpoint returned status {response.status_code}: {response.text}")
+                raise self._build_api_error(
+                    "fal status endpoint returned error",
+                    response.status_code,
+                    response.text,
+                )
 
             data = response.json()
             status = data.get("status", "UNKNOWN")
@@ -151,15 +157,41 @@ class FalFluxImageEditingService(AIImageEditingService):
 
             await asyncio.sleep(self.settings.fal_poll_interval_seconds)
 
-        try:
-            response = await self.client.get(response_url, headers=headers)
-        except httpx.HTTPError as exc:
-            raise AIServiceError("Could not fetch fal response payload.") from exc
+        last_error: AIServiceError | None = None
+        for attempt in range(3):
+            try:
+                response = await self.client.get(response_url, headers=headers)
+            except httpx.HTTPError as exc:
+                last_error = AIServiceError("Could not fetch fal response payload.")
+                if attempt == 2:
+                    raise last_error from exc
+                await asyncio.sleep(1.0 + attempt)
+                continue
 
-        if response.status_code >= 400:
-            raise AIServiceError(f"fal response endpoint returned status {response.status_code}: {response.text}")
+            if response.status_code < 400:
+                return response.json()
 
-        return response.json()
+            last_error = AIServiceError(
+                str(self._build_api_error(
+                    "fal response endpoint returned error",
+                    response.status_code,
+                    response.text,
+                ))
+            )
+            if response.status_code not in {404, 408, 409, 425, 429, 500, 502, 503, 504} or attempt == 2:
+                raise last_error
+
+            logger.warning(
+                "fal response payload not ready yet: status=%s attempt=%s response_url=%s",
+                response.status_code,
+                attempt + 1,
+                response_url,
+            )
+            await asyncio.sleep(1.0 + attempt)
+
+        if last_error is not None:
+            raise last_error
+        raise AIServiceError("fal response endpoint returned an unknown error.")
 
     def _build_data_uri(self, image_path: Path) -> str:
         content = image_path.read_bytes()
@@ -171,6 +203,40 @@ class FalFluxImageEditingService(AIImageEditingService):
         elif suffix == ".webp":
             content_type = "image/webp"
         return f"data:{content_type};base64,{encoded}"
+
+    def _format_error_body(self, text: str, max_length: int = 500) -> str:
+        compact = " ".join(text.split())
+        if "data:image/" in compact and ";base64," in compact:
+            prefix, _sep, suffix = compact.partition(";base64,")
+            compact = f"{prefix};base64,[omitted]"
+            if suffix:
+                compact += " ..."
+        if len(compact) > max_length:
+            return compact[:max_length] + "... [truncated]"
+        return compact
+
+    def _build_api_error(self, prefix: str, status_code: int, text: str) -> AIServiceError:
+        policy_message = self._extract_content_policy_message(text)
+        if policy_message is not None:
+            return AIServiceError(policy_message)
+        return AIServiceError(f"{prefix} with status {status_code}: {self._format_error_body(text)}")
+
+    def _extract_content_policy_message(self, text: str) -> str | None:
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError:
+            return None
+
+        detail = payload.get("detail")
+        if not isinstance(detail, list):
+            return None
+
+        for item in detail:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") == "content_policy_violation":
+                return "This photo did not pass the provider moderation check. Please try another image."
+        return None
 
     async def close(self) -> None:
         await self.client.aclose()

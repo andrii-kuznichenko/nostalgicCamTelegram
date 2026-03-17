@@ -61,6 +61,7 @@ Required Railway variables:
 - `PACKAGE_CREDITS=50`
 - `MAX_PHOTO_SIZE_BYTES=10485760`
 - `MAX_CONCURRENT_GENERATIONS_PER_USER=1`
+- `MAX_CONCURRENT_GENERATIONS_GLOBAL=2`
 - `FLOOD_WINDOW_SECONDS=2`
 - `TEMP_FILE_TTL_HOURS=24`
 - `USE_MOCK_AI_PROVIDER=false`
@@ -92,6 +93,7 @@ Deploy flow:
 - `PACKAGE_CREDITS`
 - `MAX_PHOTO_SIZE_BYTES`
 - `FLOOD_WINDOW_SECONDS`
+- `MAX_CONCURRENT_GENERATIONS_GLOBAL`
 - `TEMP_FILE_TTL_HOURS`
 - `USE_MOCK_AI_PROVIDER`
 - `PROMPT_PREVIEW_MODE`
@@ -146,4 +148,5 @@ The app will:
 - tables are created automatically at startup;
 - SQLite is fine for local development;
 - temporary files are cleaned periodically;
+- at most `2` generations are sent to the AI provider at the same time by default;
 - prompt preview mode is useful for debugging prompt-building before real image generation.

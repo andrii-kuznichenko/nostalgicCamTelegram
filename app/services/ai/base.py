@@ -13,6 +13,7 @@ class AIImageEditingService(ABC):
         self,
         image_path: Path,
         prompt: str,
+        negative_prompt: str | None = None,
         progress_callback: Callable[[str], Awaitable[None]] | None = None,
     ) -> Path:
         raise NotImplementedError

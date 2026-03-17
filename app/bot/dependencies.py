@@ -11,6 +11,7 @@ from app.services.ai.http_provider import HttpAIImageEditingService
 from app.services.ai.mock_provider import MockAIImageEditingService
 from app.services.credit_service import CreditService
 from app.services.generation_service import GenerationService
+from app.services.generation_locks import GlobalGenerationLimiter
 from app.services.image_analysis import HeuristicImageAnalyzer, ImageAnalyzer
 from app.services.payment_service import PaymentService
 from app.services.prompt_builder import PromptBuilder
@@ -25,6 +26,7 @@ class AppContainer:
     payment_provider: PaymentProvider
     image_analyzer: ImageAnalyzer
     prompt_builder: PromptBuilder
+    generation_limiter: GlobalGenerationLimiter
     user_service: UserService
     credit_service: CreditService
     payment_service: PaymentService
@@ -49,6 +51,7 @@ def build_container(bot: Bot) -> AppContainer:
     payment_provider: PaymentProvider = TelegramStarsPaymentProvider(settings)
     image_analyzer: ImageAnalyzer = HeuristicImageAnalyzer()
     prompt_builder = PromptBuilder()
+    generation_limiter = GlobalGenerationLimiter(settings.max_concurrent_generations_global)
     user_service = UserService(settings)
     credit_service = CreditService()
     payment_service = PaymentService(settings, payment_provider)
@@ -58,6 +61,7 @@ def build_container(bot: Bot) -> AppContainer:
         credit_service=credit_service,
         image_analyzer=image_analyzer,
         prompt_builder=prompt_builder,
+        generation_limiter=generation_limiter,
     )
 
     return AppContainer(
@@ -67,6 +71,7 @@ def build_container(bot: Bot) -> AppContainer:
         payment_provider=payment_provider,
         image_analyzer=image_analyzer,
         prompt_builder=prompt_builder,
+        generation_limiter=generation_limiter,
         user_service=user_service,
         credit_service=credit_service,
         payment_service=payment_service,
