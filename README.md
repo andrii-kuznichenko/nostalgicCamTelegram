@@ -6,7 +6,7 @@ Telegram bot MVP built with `Python 3.11`, `aiogram 3`, `SQLAlchemy`, Telegram S
 
 | Input | Output | Logo |
 |------|--------|------|
-| ![](./assets/input.png) | ![](./assets/output.png) | ![](./assets/logo.png) |
+| ![](./assets/input.jpg) | ![](./assets/output.jpg) | ![](./assets/logo.jpg) |
 
 ## What it does
 
