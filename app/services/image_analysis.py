@@ -165,6 +165,23 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
         if face_occluded:
             face_unclear = True
 
+        eyes_closed_or_hidden = (
+            has_face
+            and (
+                eye_hits == 0
+                or (eye_hits <= face_count and not close_up_portrait)
+                or face_occluded
+            )
+        )
+        intimate_close_pose = (
+            has_face
+            and (
+                face_count >= 2
+                or (close_up_portrait and aspect_ratio <= 0.82 and overall_skin_ratio > 0.16)
+                or (face_count == 1 and face_occluded and overall_skin_ratio > 0.14)
+            )
+        )
+
         is_night = overall_brightness < 80 and top_half_brightness < 95
         strong_existing_flash = (
             has_face
@@ -214,6 +231,8 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
             is_mirror_selfie=is_mirror_selfie,
             face_occluded=face_occluded,
             face_unclear=face_unclear,
+            eyes_closed_or_hidden=eyes_closed_or_hidden,
+            intimate_close_pose=intimate_close_pose,
             phone_covers_face=phone_covers_face,
             complex_scene=complex_scene,
             is_night=is_night,
@@ -226,6 +245,8 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
         requires_safe_prompt = (
             face_occluded
             or face_unclear
+            or eyes_closed_or_hidden
+            or intimate_close_pose
             or phone_covers_face
             or face_count > 1
             or complex_scene
@@ -276,6 +297,8 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
             face_visible=face_visible,
             face_occluded=face_occluded,
             face_unclear=face_unclear,
+            eyes_closed_or_hidden=eyes_closed_or_hidden,
+            intimate_close_pose=intimate_close_pose,
             phone_covers_face=phone_covers_face,
             is_mirror_selfie=is_mirror_selfie,
             is_selfie=is_selfie,
@@ -525,6 +548,8 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
         is_mirror_selfie: bool,
         face_occluded: bool,
         face_unclear: bool,
+        eyes_closed_or_hidden: bool,
+        intimate_close_pose: bool,
         phone_covers_face: bool,
         complex_scene: bool,
         is_night: bool,
@@ -546,8 +571,16 @@ class HeuristicImageAnalyzer(ImageAnalyzer):
                 return "classic", trace
             trace.append("selected disposable because subject_type=person_no_face without a safe visible face")
             return "disposable", trace
-        if is_mirror_selfie or face_occluded or face_unclear or phone_covers_face or complex_scene:
-            trace.append("selected classic because mirror/occlusion/unclear-face/complex-scene safety rule fired")
+        if (
+            is_mirror_selfie
+            or face_occluded
+            or face_unclear
+            or eyes_closed_or_hidden
+            or intimate_close_pose
+            or phone_covers_face
+            or complex_scene
+        ):
+            trace.append("selected classic because mirror/occlusion/unclear-face/closed-eyes/intimate-pose/complex-scene safety rule fired")
             return "classic", trace
         if face_count > 1:
             trace.append("selected classic because multiple faces were detected")

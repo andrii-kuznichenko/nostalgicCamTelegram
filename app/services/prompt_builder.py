@@ -34,7 +34,8 @@ HUMAN_NEGATIVE_PROMPT = (
     "fake skin, stylized portrait, cartoon, painting, illustration, CGI, 3d render, unrealistic eyes, distorted hands, extra fingers, "
     "altered pose, changed outfit, changed hairstyle, changed background, altered camera angle, excessive glow, extreme grain, "
     "oversaturated colors, ai-generated face, opened eyes, reconstructed eyes, invented pupils, altered eyelids, sharpened facial details, "
-    "invented eyelashes, invented eyebrows, reconstructed blurred face, artificial skin detail"
+    "invented eyelashes, invented eyebrows, reconstructed blurred face, artificial skin detail, invented gaze, invented whites of the eyes, "
+    "altered eye direction, reconstructed closed eyes, changed mouth shape, altered kiss pose, altered cheek compression, altered head angle"
 )
 
 NO_FACE_NEGATIVE_PROMPT = (
@@ -56,6 +57,8 @@ SAFETY_PROMPTS = {
     "face_visible": "Preserve the exact same visible facial identity and facial proportions. Keep facial features unchanged and natural.",
     "face_occluded": "Do not reconstruct hidden parts of the face. Do not invent or alter covered facial features. Preserve only the visible facial structure exactly as shown.",
     "face_unclear": "If facial details are soft, distant, motion-blurred, closed-eyed, or unclear in the source, preserve that ambiguity exactly. Do not sharpen the face, do not open the eyes, do not invent pupils, eyelashes, eyelids, teeth, skin detail, or missing facial features.",
+    "eyes_closed_or_hidden": "If the eyes are closed, turned away, shadowed, partially hidden, or not clearly visible in the source, keep them exactly that way. Do not open the eyes. Do not invent eyeballs, pupils, whites of the eyes, eyelids, eyelashes, or gaze direction.",
+    "intimate_close_pose": "Preserve the exact same intimate pose, exact same distance between faces, exact same head angle, exact same mouth shape, exact same cheek compression, exact same touch, and exact same emotional expression. Do not normalize, separate, or re-pose the faces.",
     "mirror_selfie": "Preserve the exact same phone, exact same hand position, exact same reflection geometry, exact same mirror perspective, exact same camera angle, and exact same framing. Do not alter the reflection structure.",
     "phone_covers_face": "Do not modify the phone shape, hand anatomy, finger placement, or the visible part of the face. Do not regenerate hidden facial areas.",
     "multi_face": "Preserve every visible person exactly. Do not merge faces, do not alter identity, and do not shift facial proportions between subjects.",
@@ -129,6 +132,10 @@ class PromptBuilder:
             blocks.append(("face_occluded", SAFETY_PROMPTS["face_occluded"]))
         if analysis.face_unclear:
             blocks.append(("face_unclear", SAFETY_PROMPTS["face_unclear"]))
+        if analysis.eyes_closed_or_hidden:
+            blocks.append(("eyes_closed_or_hidden", SAFETY_PROMPTS["eyes_closed_or_hidden"]))
+        if analysis.intimate_close_pose:
+            blocks.append(("intimate_close_pose", SAFETY_PROMPTS["intimate_close_pose"]))
         if analysis.phone_covers_face:
             blocks.append(("phone_covers_face", SAFETY_PROMPTS["phone_covers_face"]))
         if analysis.requires_mirror_safe_prompt:

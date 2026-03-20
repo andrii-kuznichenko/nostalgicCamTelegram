@@ -10,6 +10,8 @@ class ImageAnalysisResult:
     face_visible: bool
     face_occluded: bool
     face_unclear: bool
+    eyes_closed_or_hidden: bool
+    intimate_close_pose: bool
     phone_covers_face: bool
     is_mirror_selfie: bool
     is_selfie: bool

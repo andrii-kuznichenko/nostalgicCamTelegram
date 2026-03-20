@@ -242,7 +242,7 @@ class GenerationService:
             async with session.begin():
                 await generation_repo.mark_failed(generation, str(exc))
             await message_dedup_registry.forget(request_key)
-            return user_message
+            return ""
 
         try:
             logger.info("Sending result photo to Telegram for user %s", message.from_user.id)
@@ -264,17 +264,21 @@ class GenerationService:
             async with session.begin():
                 await generation_repo.mark_failed(generation, "send_result_failed")
             await message_dedup_registry.forget(request_key)
-            return "Failed to send the result. Please try again a bit later."
+            return ""
 
         try:
             logger.info("Consuming one credit for user %s", message.from_user.id)
             await self.credit_service.consume_one_credit(message.from_user.id)
             logger.info("Credit consumed for user %s", message.from_user.id)
         except ValueError:
+            with contextlib.suppress(Exception):
+                await progress_message.edit_text(
+                    "Your balance seems to have changed during processing. Please check /balance."
+                )
             async with session.begin():
                 await generation_repo.mark_failed(generation, "credits_race_condition")
             await message_dedup_registry.forget(request_key)
-            return "Your balance seems to have changed during processing. Please check /balance."
+            return ""
 
         async with session.begin():
             logger.info("Marking generation success for user %s", message.from_user.id)
