@@ -4,9 +4,18 @@ Telegram bot MVP built with `Python 3.11`, `aiogram 3`, `SQLAlchemy`, Telegram S
 
 ## Preview
 
-| Input | Output | Logo |
-|------|--------|------|
-| ![](./assets/input.jpg) | ![](./assets/output.jpg) | ![](./assets/logo.jpg) |
+<table>
+  <tr>
+    <th>Input</th>
+    <th>Output</th>
+    <th>Logo</th>
+  </tr>
+  <tr>
+    <td><img src="./assets/input.jpg" width="260" /></td>
+    <td><img src="./assets/output.jpg" width="260" /></td>
+    <td><img src="./assets/logo.jpg" width="260" /></td>
+  </tr>
+</table>
 
 ## What it does
 
