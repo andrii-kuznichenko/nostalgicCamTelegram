@@ -2,6 +2,12 @@
 
 Telegram bot MVP built with `Python 3.11`, `aiogram 3`, `SQLAlchemy`, Telegram Stars payments, and a pluggable image editing layer.
 
+## Preview
+
+| Input | Output | Logo |
+|------|--------|------|
+| ![](./assets/input.png) | ![](./assets/output.png) | ![](./assets/logo.png) |
+
 ## What it does
 
 - gives every new user `5` free edits;
