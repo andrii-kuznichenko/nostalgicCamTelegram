@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     fal_poll_interval_seconds: float = Field(default=1.5, alias="FAL_POLL_INTERVAL_SECONDS")
     fal_timeout_seconds: int = Field(default=180, alias="FAL_TIMEOUT_SECONDS")
 
+    @property
+    def package_summary(self) -> str:
+        return f"{self.package_credits} photos for {self.package_price_stars} Stars"
+
+    @property
+    def package_label(self) -> str:
+        return f"{self.package_credits} photo edits"
+
 
 VINTAGE_FLASH_PROMPT = (
     "Transform the uploaded photo into a photorealistic vintage flash image while keeping the exact same "

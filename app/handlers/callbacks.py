@@ -16,7 +16,7 @@ async def create_payment_callback(callback: CallbackQuery, container: AppContain
     payment = await container.payment_service.create_payment(callback.from_user.id)
 
     await callback.message.answer_invoice(
-        title=payment.title or f"{payment.credits} photo edits",
+        title=payment.title or container.settings.package_label,
         description=payment.description or "Vintage flash photo edit package",
         payload=payment.provider_payment_id,
         currency=payment.currency or "XTR",

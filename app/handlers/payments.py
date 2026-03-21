@@ -41,7 +41,7 @@ async def successful_payment_handler(message: Message, container: AppContainer) 
 def build_stars_prices(container: AppContainer) -> list[LabeledPrice]:
     return [
         LabeledPrice(
-            label=f"{container.settings.package_credits} photo edits",
+            label=container.settings.package_label,
             amount=container.settings.package_price_stars,
         )
     ]

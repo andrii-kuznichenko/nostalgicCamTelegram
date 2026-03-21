@@ -18,7 +18,7 @@ class TelegramStarsPaymentProvider(PaymentProvider):
             payment_url=None,
             amount_usd=amount_usd,
             credits=credits,
-            title=f"{credits} photo edits",
+            title=self.settings.package_label,
             description="Vintage flash photo edit package",
             currency="XTR",
             amount_minor_units=self.settings.package_price_stars,

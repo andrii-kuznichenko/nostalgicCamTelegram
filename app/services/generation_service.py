@@ -80,7 +80,7 @@ class GenerationService:
                         await message_dedup_registry.forget(request_key)
                         return (
                             f"You have no edits left. You can buy a package of "
-                            f"{self.settings.package_credits} photos for {self.settings.package_price_stars} Stars with /buy."
+                            f"{self.settings.package_summary} with /buy."
                         )
 
             try:

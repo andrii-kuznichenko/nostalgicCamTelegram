@@ -28,7 +28,7 @@ async def send_help_message(message: Message, container: AppContainer) -> None:
         "1. Send a photo.\n"
         "2. I will process it in a vintage early-2000s flash style.\n"
         f"3. After {container.settings.free_credits_on_start} free edits, you can buy "
-        f"a package of {container.settings.package_credits} photos for {container.settings.package_price_stars} Stars.\n\n"
+        f"a package of {container.settings.package_summary}.\n\n"
         "Commands: /balance, /buy, /help",
         reply_markup=main_menu_keyboard(),
     )
@@ -50,7 +50,7 @@ async def send_balance_message(message: Message, container: AppContainer) -> Non
 
 async def send_buy_message(message: Message, container: AppContainer) -> None:
     await message.answer(
-        f"Package: {container.settings.package_credits} photos for {container.settings.package_price_stars} Stars.\n"
+        f"Package: {container.settings.package_summary}.\n"
         "Tap the button below to open the Telegram Stars payment screen.",
         reply_markup=buy_package_keyboard(),
     )
